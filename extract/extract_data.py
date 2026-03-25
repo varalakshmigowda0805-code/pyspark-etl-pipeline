@@ -2,7 +2,7 @@ from pyspark.sql import SparkSession
 
 def extract_from_s3(spark, input_path):
     """
-    Extract raw data from S3.
+    Extract raw data from S3/as of now we are using sample data file which in git .
     """
     df = spark.read.json(input_path)
     return df
