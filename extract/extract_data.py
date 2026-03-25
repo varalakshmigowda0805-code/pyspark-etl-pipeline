@@ -1,16 +1,30 @@
+import sys
+from awsglue.context import GlueContext
+from awsglue.job import Job
+from pyspark.context import SparkContext
 from pyspark.sql import SparkSession
 
-def extract_from_s3(spark, input_path):
+def extract_from_github(spark, url):
     """
-    Extract raw data from S3/as of now we are using sample data file which in git .
+    Read JSON data from GitHub raw URL.
     """
-    df = spark.read.json(input_path)
+    df = spark.read.option("multiline", "true").json(url)
     return df
 
-if __name__ == "__main__":
-    spark = SparkSession.builder.appName("ExtractData").getOrCreate()
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
 
-    input_path = "https://github.com/varalakshmigowda0805-code/pyspark-etl-pipeline/blob/main/sample_data.json"
-    df = extract_from_s3(spark, input_path)
+github_raw_url = "https://raw.githubusercontent.com/<username>/<repo>/main/data/sample_data.json"
 
-    df.show(5)
+df = extract_from_github(spark, github_raw_url)
+df.show(5)
+
+# ✅ Save extracted data to Glue temp S3 path for next job
+output_path = "s3://your-temp-bucket/extracted/sample_data/"
+
+df.write.mode("overwrite").json(output_path)
+
+print("✅ Extract job completed.")
+job.commit()
