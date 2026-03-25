@@ -1,52 +1,40 @@
-from pyspark.sql import SparkSession
-from extract.extract_data import extract_from_s3
-from transform.transform_data import transform_data
-from scd.scd_upsert import scd2_transform
+import sys
+from awsglue.context import GlueContext
+from awsglue.job import Job
+from pyspark.context import SparkContext
+from pyspark.sql import functions as F
 
-def write_to_hudi(df, hudi_path):
-    """
-    Write or upsert data into Apache Hudi table on S3.
-    """
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
 
-    hudi_options = {
-        "hoodie.table.name": "customer_hudi_table",
-        "hoodie.datasource.write.recordkey.field": "record_key",
-        "hoodie.datasource.write.precombine.field": "precombine_key",
-        "hoodie.datasource.write.table.type": "COPY_ON_WRITE",
-        "hoodie.datasource.write.operation": "upsert",
-        "hoodie.datasource.hive_sync.enable": "true",
-        "hoodie.datasource.hive_sync.database": "default",
-        "hoodie.datasource.hive_sync.table": "customer_hudi_table",
-        "hoodie.datasource.hive_sync.mode": "jdbc",
-        "hoodie.datasource.hive_sync.support_timestamp": "true",
-    }
+# ✅ Input (from SCD Job)
+input_path = "s3://your-temp-bucket/scd2/sample_data/"
+df = spark.read.json(input_path)
 
-    (
-        df.write.format("hudi")
-          .options(**hudi_options)
-          .mode("append")
-          .save(hudi_path)
-    )
+# ✅ Hudi Options
+hudi_options = {
+    "hoodie.table.name": "customer_hudi_table",
+    "hoodie.datasource.write.operation": "upsert",
+    "hoodie.datasource.write.recordkey.field": "record_key",
+    "hoodie.datasource.write.precombine.field": "precombine_key",
+    "hoodie.datasource.write.table.type": "COPY_ON_WRITE",
 
-if __name__ == "__main__":
-    spark = SparkSession.builder \
-        .appName("HudiETLPipeline") \
-        .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
-        .config("spark.sql.hive.convertMetastoreParquet", "false") \
-        .getOrCreate()
+    # Hive Sync (Optional)
+    "hoodie.datasource.hive_sync.enable": "true",
+    "hoodie.datasource.hive_sync.database": "default",
+    "hoodie.datasource.hive_sync.table": "customer_hudi_table",
+    "hoodie.datasource.hive_sync.mode": "hms",
+}
 
-    
-    input_path = "s3://your-bucket/raw/data/"
-    raw_df = extract_from_s3(spark, input_path)
-
-    
-    transformed_df = transform_data(raw_df)
-
-    
-    scd_df = scd2_transform(transformed_df)
-
-
-    hudi_path = "s3://your-bucket/hudi/customer_hudi_table/"
-    write_to_hudi(scd_df, hudi_path)
-
-    spark.stop()
+# ✅ Hudi output path
+hudi_output_path = "s3://your-output-bucket/hudi/customer_hudi_table/"
+(
+    df.write.format("hudi")
+      .options(**hudi_options)
+      .mode("append")
+      .save(hudi_output_path)
+)
+print("✅ Hudi table write completed successfully.")
+job.commit()
