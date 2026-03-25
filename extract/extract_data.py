@@ -10,7 +10,7 @@ def extract_from_s3(spark, input_path):
 if __name__ == "__main__":
     spark = SparkSession.builder.appName("ExtractData").getOrCreate()
 
-    input_path = "s3://your-bucket/raw/data/"
+    input_path = "https://github.com/varalakshmigowda0805-code/pyspark-etl-pipeline/blob/main/sample_data.json"
     df = extract_from_s3(spark, input_path)
 
     df.show(5)
