@@ -16,7 +16,7 @@ glueContext = GlueContext(sc)
 spark = glueContext.spark_session
 job = Job(glueContext)
 
-github_raw_url = "sample_data.json"
+github_raw_url = "https://github.com/varalakshmigowda0805-code/pyspark-etl-pipeline/blob/main/sample_data.json"
 
 df = extract_from_github(spark, github_raw_url)
 df.show(5)
