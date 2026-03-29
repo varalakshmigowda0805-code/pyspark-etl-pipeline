@@ -1,0 +1,101 @@
+{
+  "Comment": "Hudi ETL Pipeline Orchestration using AWS Glue",
+  "StartAt": "ExtractJob",
+  "States": {
+    "ExtractJob": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::glue:startJobRun.sync",
+      "Parameters": {
+        "JobName": "extract_job",
+        "Arguments": {
+          "--JOB_NAME": "extract_job"
+        }
+      },
+      "Next": "TransformJob",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "ExtractFailed"
+        }
+      ]
+    },
+
+    "TransformJob": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::glue:startJobRun.sync",
+      "Parameters": {
+        "JobName": "transform_job",
+        "Arguments": {
+          "--JOB_NAME": "transform_job"
+        }
+      },
+      "Next": "SCDJob",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "TransformFailed"
+        }
+      ]
+    },
+
+    "SCDJob": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::glue:startJobRun.sync",
+      "Parameters": {
+        "JobName": "scd_job",
+        "Arguments": {
+          "--JOB_NAME": "scd_job"
+        }
+      },
+      "Next": "HudiJob",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "SCDFailed"
+        }
+      ]
+    },
+
+    "HudiJob": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::glue:startJobRun.sync",
+      "Parameters": {
+        "JobName": "hudi_job",
+        "Arguments": {
+          "--JOB_NAME": "hudi_job"
+        }
+      },
+      "End": true,
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HudiFailed"
+        }
+      ]
+    },
+
+    "ExtractFailed": {
+      "Type": "Fail",
+      "Error": "ExtractJobFailed",
+      "Cause": "Extract Glue job failed"
+    },
+
+    "TransformFailed": {
+      "Type": "Fail",
+      "Error": "TransformJobFailed",
+      "Cause": "Transform Glue job failed"
+    },
+
+    "SCDFailed": {
+      "Type": "Fail",
+      "Error": "SCDJobFailed",
+      "Cause": "SCD Type-2 Glue job failed"
+    },
+
+    "HudiFailed": {
+      "Type": "Fail",
+      "Error": "HudiJobFailed",
+      "Cause": "Hudi write Glue job failed"
+    }
+  }
+}
